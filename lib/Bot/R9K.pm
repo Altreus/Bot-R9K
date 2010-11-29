@@ -70,10 +70,14 @@ Create a new bot: see L<SYNOPSIS>.
 
 =over 
 
+=item ci
+
+Sets the messages to be case insensitive.
+
 =item ignore
 
-An array ref of regexes to ignore. They are tested against the full nick (with
-the ! and the @ and everything).
+An array ref of regexes for nicks to ignore. They are tested against the full
+nick (with the ! and the @ and everything).
 
 =item exceptions
 
@@ -101,6 +105,7 @@ sub new {
     my $options = shift // {};
 
     my %default = (
+        ci => 1,
         ignore => [],
         exceptions => [],
         punishment => sub {
@@ -146,12 +151,15 @@ sub S_public {
     return PCI_EAT_NONE if any { $nick =~ $_ } @{ $self->{ignore} };
     return PCI_EAT_NONE if any { $msg =~ $_ } @{ $self->{exceptions} };
 
-    my $penalty = $self->{channel}->{$chan}->{message}->{$msg}++;
-    return PCI_EAT_NONE unless $penalty;
+    $message = lc $message if $self->{ci};
 
-    say "punishing $nick in $chan for saying -- $msg --";
+    if ($self->{channel}->{$chan}->{message}->{$msg}++) {
+        my $penalty = ++$self->{channel}->{$chan}->{nick}->{$nick};
+        say "punishing $nick in $chan for saying -- $msg --";
 
-    $self->punish($nick, $chan, $penalty);
+        $self->punish($nick, $chan, $penalty);
+    }
+
     return PCI_EAT_NONE;
 }
 
